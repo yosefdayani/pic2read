@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">pic2read</string>
+    <string name="greeting_txt">Convert any picture to text and play it!</string>
+    <!-- Preference headers -->
+    <string name="voice_header">Voices</string>
+    <string name="display_header">Display</string>
+
+    <!-- Preference titles -->
+    <string name="gender_title">Voice Gender</string>
+    <string name="font_title">Font</string>
+    <string name="text_size_title">Font Size</string>
+
+    <!-- Preference summaries -->
+    <string name="gender_summary">Toggle for male voice</string>
+    <string name="font_summary">Font of the text in the result</string>
+    <string name="text_size_summary">Size of the text in the result</string>
+
+    <string name="play">play</string>
+    <string name="home">home</string>
+    <string name="logo">logo</string>
+    <string name="camera">camera</string>
+    <string name="upload">upload</string>
+    <string name="settings">settings</string>
+
+</resources>

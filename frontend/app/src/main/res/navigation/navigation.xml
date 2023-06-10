@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/navigation"
+    app:startDestination="@id/fragmentMainScreen">
+    <fragment
+        android:id="@+id/fragmentMainScreen"
+        android:name="com.example.myapplication.presentation.MainScreenFragment">
+        <action
+            android:id="@+id/action_fragmentMainScreen_to_fragmentResult"
+            app:destination="@id/fragmentResult" />
+        <action
+            android:id="@+id/action_fragmentMainScreen_to_fragmentSettings"
+            app:destination="@id/fragmentSettings" />
+    </fragment>
+    <fragment
+        android:id="@+id/fragmentResult"
+        android:name="com.example.myapplication.presentation.ResultFragment">
+        <argument
+            android:name="source"
+            app:argType="string"
+            />
+    </fragment>
+    <fragment
+        android:id="@+id/fragmentSettings"
+        android:name="com.example.myapplication.presentation.SettingsFragment">
+
+    </fragment>
+</navigation>
