@@ -1,0 +1,647 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Cloudformation template for resources needed for HUJI final project.
+Parameters:
+  PairName:
+    Description: The name of the pair working on the exercise.
+    Type: String
+  CodePackageDate:
+    Description: The date of the code package in ms.
+    Type: String
+Outputs:
+  GetterLambdaUrl:
+    Description: The URL of the result getter lambda
+    Value: !GetAtt GetterLambdaFunctionUrl.FunctionUrl
+    Export:
+      Name: huji-lightricks-final-project-getter-lambda-url
+  ImageUploadingLambdaURL:
+    Description: The URL of the image uploading lambda
+    Value: !GetAtt ImageUploadingLambdaFunctionUrl.FunctionUrl
+    Export:
+      Name: huji-lightricks-final-project-image-uploading-lambda
+Resources:
+  ImageS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    DependsOn:
+      - TextProcessorLambdaFunctionCreateImageEventPermission
+    Properties:
+      AccessControl: Private
+      BucketName: !Sub 'huji-lightricks-final-project-image-${PairName}-bucket'
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Function: !GetAtt
+              - TextProcessorLambdaFunction
+              - Arn
+            Event: 's3:ObjectCreated:*'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 61e4191a-2eb9-4bef-9f6c-fdfc7b167a66
+  AudioS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub 'huji-lightricks-final-project-audio-${PairName}-bucket'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 4b729012-2663-4861-8ba2-def5e952957f
+  ResultTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: huji-lightricks-final-project-result
+      AttributeDefinitions:
+        - AttributeName: job_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: job_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 1edd885e-7bfe-4ed8-87fe-07ba39fe6f9a
+  ImageUploadingLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: huji-lightricks-final-project-image-uploading-lambda-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: huji-lightricks-final-project-image-uploading-lambda-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:PutItem'
+                Resource:
+                  - !GetAtt ResultTable.Arn
+              - Effect: Allow
+                Action: 's3:PutObject'
+                Resource: !Sub
+                  - '${ImageS3BucketArn}/*'
+                  - ImageS3BucketArn: !GetAtt ImageS3Bucket.Arn
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 0454c6e6-7421-40f9-949e-2eedb0813548
+  ImageUploadingLambdaLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ImageUploadingLambdaFunction}'
+      RetentionInDays: 3
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: ff78bf05-da27-4408-919e-38016e9e8aac
+  TextProcessorLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: huji-lightricks-final-project-text-processor-lambda-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: huji-lightricks-final-project-text-processor-lambda-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:GetItem*'
+                  - 'dynamodb:Query'
+                Resource: !GetAtt ResultTable.Arn
+              - Effect: Allow
+                Action: 's3:PutObject'
+                Resource: !Sub
+                  - '${TextS3BucketArn}/*'
+                  - TextS3BucketArn: !GetAtt TextS3Bucket.Arn
+              - Effect: Allow
+                Action: 's3:GetObject'
+                Resource: !Sub >-
+                  arn:aws:s3:::huji-lightricks-final-project-image-${PairName}-bucket*
+              - Effect: Allow
+                Action: 'textract:DetectDocumentText'
+                Resource: '*'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 37a8d894-1655-456d-8c3a-191cf293a97a
+  TextProcessorLambdaLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${TextProcessorLambdaFunction}'
+      RetentionInDays: 3
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 7142ad0f-a029-4f50-8cec-263ba03d71a4
+  GetterLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: huji-lightricks-final-project-getter-lambda-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: huji-lightricks-final-project-getter-lambda-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:GetItem'
+                Resource:
+                  - !GetAtt ResultTable.Arn
+              - Effect: Allow
+                Action: 's3:GetObject'
+                Resource: !Sub >-
+                  arn:aws:s3:::huji-lightricks-final-project-text-${PairName}-bucket*
+              - Effect: Allow
+                Action: 's3:GetObject'
+                Resource: !Sub
+                  - '${AudioS3BucketArn}/*'
+                  - AudioS3BucketArn: !GetAtt AudioS3Bucket.Arn
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: e390c9a8-f67e-4ea3-a521-e39ec19aa7f1
+  GetterLambdaLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetterLambdaFunction}'
+      RetentionInDays: 3
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 6c5f6900-88bb-478f-99b8-4eafc5a5970b
+  ImageUploadingLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        S3Bucket: !ImportValue
+          'Fn::Sub': 'huji-lightricks-final-project-code-${PairName}-bucket-name'
+        S3Key: !Sub '${PairName}-${CodePackageDate}-code-package.zip'
+      FunctionName: huji-lightricks-final-project-image-uploading-lambda
+      Handler: lambdas.image_uploader.handler
+      Role: !GetAtt ImageUploadingLambdaRole.Arn
+      Runtime: python3.8
+      Timeout: 25
+      Environment:
+        Variables:
+          IMAGES_BUCKET_NAME: !Sub 'huji-lightricks-final-project-image-${PairName}-bucket'
+      Tags:
+        - Key: 'lambda:createdBy'
+          Value: SAM
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 6f00ffae-2d8c-4bb8-b897-54f389466c04
+  ImageUploadingLambdaFunctionUrl:
+    Type: 'AWS::Lambda::Url'
+    Properties:
+      TargetFunctionArn: !Ref ImageUploadingLambdaFunction
+      AuthType: NONE
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 3a102f67-24a8-44fc-9d90-f3b008f07d6c
+  ImageUploadingLambdaFunctionUrlPublicPermissions:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunctionUrl'
+      FunctionName: !Ref ImageUploadingLambdaFunction
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: b5a68625-5f3c-4e80-ad74-252aaa3735ed
+  TextProcessorLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        S3Bucket: !ImportValue
+          'Fn::Sub': 'huji-lightricks-final-project-code-${PairName}-bucket-name'
+        S3Key: !Sub '${PairName}-${CodePackageDate}-code-package.zip'
+      FunctionName: huji-lightricks-final-project-text-processor-lambda
+      Handler: lambdas.text_processor.handler
+      MemorySize: 512
+      Role: !GetAtt TextProcessorLambdaRole.Arn
+      Runtime: python3.8
+      Timeout: 500
+      Environment:
+        Variables:
+          TEXT_BUCKET_NAME: !Sub 'huji-lightricks-final-project-text-${PairName}-bucket'
+          IMAGES_BUCKET_NAME: !Sub 'huji-lightricks-final-project-image-${PairName}-bucket'
+      Tags:
+        - Key: 'lambda:createdBy'
+          Value: SAM
+      Layers:
+        - 'arn:aws:lambda:us-west-2:770693421928:layer:Klayers-p38-Pillow:5'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 94d913eb-9ccd-4309-b374-2641dec2c7cc
+  TextProcessorLambdaFunctionCreateImageEventPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref TextProcessorLambdaFunction
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 7a95c6e7-9e3f-432e-8bc1-9b58013f9fcf
+  GetterLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        S3Bucket: !ImportValue
+          'Fn::Sub': 'huji-lightricks-final-project-code-${PairName}-bucket-name'
+        S3Key: !Sub '${PairName}-${CodePackageDate}-code-package.zip'
+      FunctionName: huji-lightricks-final-project-getter-lambda
+      Handler: lambdas.getter.handler
+      Role: !GetAtt GetterLambdaRole.Arn
+      Runtime: python3.8
+      Timeout: 25
+      Environment:
+        Variables:
+          TEXT_BUCKET_NAME: !Sub 'huji-lightricks-final-project-text-${PairName}-bucket'
+          AUDIO_BUCKET_NAME: !Sub 'huji-lightricks-final-project-audio-${PairName}-bucket'
+      Tags:
+        - Key: 'lambda:createdBy'
+          Value: SAM
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: a3b4d1e4-cadf-4322-b088-6e73cfe447c6
+  GetterLambdaFunctionUrl:
+    Type: 'AWS::Lambda::Url'
+    Properties:
+      TargetFunctionArn: !Ref GetterLambdaFunction
+      AuthType: NONE
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: b0e53244-c5f5-44bc-a021-18baaba6c3ab
+  GetterLambdaFunctionUrlPublicPermissions:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunctionUrl'
+      FunctionName: !Ref GetterLambdaFunction
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 03b3cb82-1523-44dd-bc10-0f4f10651548
+  TextS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    DependsOn:
+      - AudioProcessorLambdaFunctionCreateImageEventPermission
+    Properties:
+      BucketName: !Sub 'huji-lightricks-final-project-text-${PairName}-bucket'
+      AccessControl: Private
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Function: !GetAtt
+              - AudioProcessorLambdaFunction
+              - Arn
+            Event: 's3:ObjectCreated:*'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 257c3507-15d9-40af-aa1b-ebcb6684205a
+  AudioProcessorLambdaFunctionCreateImageEventPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref AudioProcessorLambdaFunction
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: b4799fa1-6523-4ece-868a-b2b4336ffb8e
+  AudioProcessorLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        S3Bucket: !ImportValue
+          'Fn::Sub': 'huji-lightricks-final-project-code-${PairName}-bucket-name'
+        S3Key: !Sub '${PairName}-${CodePackageDate}-code-package.zip'
+      FunctionName: huji-lightricks-final-project-audio-processor-lambda
+      Handler: lambdas.audio_processor.handler
+      MemorySize: 512
+      Role: !GetAtt AudioProcessorLambdaRole.Arn
+      Runtime: python3.8
+      Timeout: 500
+      Environment:
+        Variables:
+          AUDIO_BUCKET_NAME: !Sub 'huji-lightricks-final-project-audio-${PairName}-bucket'
+          TEXT_BUCKET_NAME: !Sub 'huji-lightricks-final-project-text-${PairName}-bucket'
+      Tags:
+        - Key: 'lambda:createdBy'
+          Value: SAM
+      Layers:
+        - 'arn:aws:lambda:us-west-2:770693421928:layer:Klayers-p38-Pillow:5'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 7d7c1d0a-e83a-406b-9948-ff4e9917506d
+  AudioProcessorLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: huji-lightricks-final-project-audio-processor-lambda-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: huji-lightricks-final-project-audio-processor-lambda-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:GetItem*'
+                  - 'dynamodb:Query'
+                Resource: !GetAtt ResultTable.Arn
+              - Effect: Allow
+                Action: 's3:PutObject'
+                Resource: !Sub
+                  - '${AudioS3BucketArn}/*'
+                  - AudioS3BucketArn: !GetAtt AudioS3Bucket.Arn
+              - Effect: Allow
+                Action: 's3:GetObject'
+                Resource: !Sub >-
+                  arn:aws:s3:::huji-lightricks-final-project-text-${PairName}-bucket*
+              - Effect: Allow
+                Action: 'polly:DescribeVoices'
+                Resource: '*'
+              - Effect: Allow
+                Action: 'polly:SynthesizeSpeech'
+                Resource: '*'
+              - Effect: Allow
+                Action: 'Comprehend:DetectDominantLanguage'
+                Resource: '*'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: b6ed75e1-870c-4334-a3dd-3d80041dcdca
+  AudioProcessorLambdaLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AudioProcessorLambdaFunction}'
+      RetentionInDays: 3
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 182f37ba-7d25-425e-939a-54823717d852
+Metadata:
+  'AWS::CloudFormation::Designer':
+    3a102f67-24a8-44fc-9d90-f3b008f07d6c:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: -130
+        'y': 180
+      z: 1
+      embeds: []
+    6c5f6900-88bb-478f-99b8-4eafc5a5970b:
+      size:
+        width: 150
+        height: 150
+      position:
+        x: -450
+        'y': 320
+      z: 1
+      embeds: []
+    7142ad0f-a029-4f50-8cec-263ba03d71a4:
+      size:
+        width: 150
+        height: 150
+      position:
+        x: -430
+        'y': -20
+      z: 1
+      embeds: []
+    ff78bf05-da27-4408-919e-38016e9e8aac:
+      size:
+        width: 150
+        height: 150
+      position:
+        x: -460
+        'y': 500
+      z: 1
+      embeds: []
+    1edd885e-7bfe-4ed8-87fe-07ba39fe6f9a:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 330
+        'y': 60
+      z: 1
+      embeds: []
+    e390c9a8-f67e-4ea3-a521-e39ec19aa7f1:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 810
+        'y': 60
+      z: 1
+      embeds: []
+    a3b4d1e4-cadf-4322-b088-6e73cfe447c6:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 970
+        'y': 310
+      z: 1
+      embeds: []
+    03b3cb82-1523-44dd-bc10-0f4f10651548:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 1110
+        'y': 310
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - a3b4d1e4-cadf-4322-b088-6e73cfe447c6
+    b0e53244-c5f5-44bc-a021-18baaba6c3ab:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 970
+        'y': 130
+      z: 1
+      embeds: []
+    4b729012-2663-4861-8ba2-def5e952957f:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 800
+        'y': 300
+      z: 1
+      embeds: []
+    37a8d894-1655-456d-8c3a-191cf293a97a:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 330
+        'y': 300
+      z: 1
+      embeds: []
+    94d913eb-9ccd-4309-b374-2641dec2c7cc:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 210
+        'y': 300
+      z: 1
+      embeds: []
+    7a95c6e7-9e3f-432e-8bc1-9b58013f9fcf:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 140
+        'y': 210
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - 94d913eb-9ccd-4309-b374-2641dec2c7cc
+    61e4191a-2eb9-4bef-9f6c-fdfc7b167a66:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 80
+        'y': 300
+      z: 1
+      embeds: []
+      dependson:
+        - 7a95c6e7-9e3f-432e-8bc1-9b58013f9fcf
+    0454c6e6-7421-40f9-949e-2eedb0813548:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: -30
+        'y': 300
+      z: 1
+      embeds: []
+    6f00ffae-2d8c-4bb8-b897-54f389466c04:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: -130
+        'y': 300
+      z: 1
+      embeds: []
+    b5a68625-5f3c-4e80-ad74-252aaa3735ed:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: -240
+        'y': 300
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - 6f00ffae-2d8c-4bb8-b897-54f389466c04
+    257c3507-15d9-40af-aa1b-ebcb6684205a:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 430
+        'y': 300
+      z: 0
+      embeds: []
+      dependson:
+        - b4799fa1-6523-4ece-868a-b2b4336ffb8e
+    b4799fa1-6523-4ece-868a-b2b4336ffb8e:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 500
+        'y': 200
+      z: 0
+      embeds: []
+      isassociatedwith:
+        - 7d7c1d0a-e83a-406b-9948-ff4e9917506d
+    7d7c1d0a-e83a-406b-9948-ff4e9917506d:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 580
+        'y': 300
+      z: 0
+      embeds: []
+    b6ed75e1-870c-4334-a3dd-3d80041dcdca:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 700
+        'y': 300
+      z: 0
+      embeds: []
+    182f37ba-7d25-425e-939a-54823717d852:
+      size:
+        width: 140
+        height: 140
+      position:
+        x: -440
+        'y': 150
+      z: 0
+      embeds: []

@@ -1,0 +1,27 @@
+BASE_UPLOAD_URL = "https://stry426ebosd3go67en4u4yhti0imieg.lambda-url.us-west-2.on.aws/"
+BASE_PROCESSED_DATA_URL = "https://lngubcqomwqe7qqbdubopx4jhi0euytz.lambda-url.us-west-2.on.aws/"
+
+IMG_ENGLISH_GALLERY = "resources/english_text_gallery.jpg"
+IMG_ENGLISH_CAMERA = "resources/english_text_camera.jpg"
+IMG_SPANISH = "resources/spanish_text.jpg"
+IMG_GERMAN = "resources/german_text.jpg"
+IMG_ITALIAN = "resources/italian_text.jpg"
+IMG_FRENCH = "resources/french_text.jpg"
+IMG_PORTUGUESE = "resources/portuguese_text.jpg"
+IMG_SWEDISH = "resources/swedish_text.jpg"
+IMG_SHORT_TEXT = "resources/short_text.jpg"
+IMG_LONG_TEXT = "resources/long_text.jpg"
+IMG_NO_TEXT = "resources/no_text.jpg"
+VALID_IMG = [IMG_ENGLISH_CAMERA, IMG_ENGLISH_GALLERY, IMG_SPANISH, IMG_GERMAN, IMG_ITALIAN, IMG_FRENCH, IMG_PORTUGUESE]
+
+BAD_JOB_ID = "bad_job_id"
+FILE_NAME = "system_test_pic.jpg"
+
+STATUS_CREATED = "created"
+STATUS_TEXT_PROCESSING = "text_processing"
+STATUS_TEXT_FAILED = "text_failed"
+STATUS_AUDIO_PROCESSING = "audio_processing"
+STATUS_AUDIO_FAILED = "audio_failed"
+STATUS_LANGUAGE_NOT_SUPPORTED = "language_not_supported"
+STATUS_TEXT_TOO_SHORT = "text_too_short"
+STATUS_SUCCESS = "success"
